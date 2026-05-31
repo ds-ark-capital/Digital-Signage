@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Signage</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain; /* swap to 'cover' to fill & crop */
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+    }
+    .slide.active {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // ====== CONFIG ======
+    const images = [
+      "images/01.jpg",
+      "images/02.jpg",
+      "images/03.jpg",
+      "images/05.jpg",
+      "images/06.jpg",
+      "images/07.jpg",
+      "images/08.jpg",
+      "images/09.jpg",
+      "images/10.jpg",
+      "images/11.jpg",
+      "images/12.jpg"
+      // add more lines here, comma-separated
+    ];
+    const intervalMs = 10000; // time per slide (10s)
+    // ====================
+
+    const body = document.body;
+
+    // Preload + inject <img> elements
+    const slides = images.map((src, i) => {
+      const img = document.createElement("img");
+      img.src = src;
+      img.className = "slide" + (i === 0 ? " active" : "");
+      body.appendChild(img);
+      return img;
+    });
+
+    let current = 0;
+    setInterval(() => {
+      slides[current].classList.remove("active");
+      current = (current + 1) % slides.length;
+      slides[current].classList.add("active");
+    }, intervalMs);
+  </script>
+</body>
+</html>
