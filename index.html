@@ -12,6 +12,7 @@
       background: #000;
       overflow: hidden;
       font-family: sans-serif;
+      color: #fff;
     }
     .slide {
       position: absolute;
@@ -19,52 +20,93 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      object-fit: contain; /* swap to 'cover' to fill & crop */
       opacity: 0;
-      transition: opacity 1.5s ease-in-out;
+      transition: opacity var(--transition, 1.5s) ease-in-out;
     }
-    .slide.active {
-      opacity: 1;
+    .slide.active { opacity: 1; }
+    .error {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 1.25rem;
     }
   </style>
 </head>
 <body>
   <script>
-    // ====== CONFIG ======
-    const images = [
-      "images/01.jpg",
-      "images/02.jpg",
-      "images/03.jpg",
-      "images/05.jpg",
-      "images/06.jpg",
-      "images/07.jpg",
-      "images/08.jpg",
-      "images/09.jpg",
-      "images/10.jpg",
-      "images/11.jpg",
-      "images/12.jpg"
-      // add more lines here, comma-separated
-    ];
-    const intervalMs = 10000; // time per slide (10s)
-    // ====================
+    (async () => {
+      const root = document.body;
 
-    const body = document.body;
+      function showError(msg) {
+        const div = document.createElement("div");
+        div.className = "error";
+        div.textContent = msg;
+        root.appendChild(div);
+        console.error(msg);
+      }
 
-    // Preload + inject <img> elements
-    const slides = images.map((src, i) => {
-      const img = document.createElement("img");
-      img.src = src;
-      img.className = "slide" + (i === 0 ? " active" : "");
-      body.appendChild(img);
-      return img;
-    });
+      let manifest;
+      try {
+        // Cache-bust so MTRs always get the latest manifest
+        const res = await fetch("manifest.json?t=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        manifest = await res.json();
+      } catch (e) {
+        showError("Failed to load manifest.json — " + e.message);
+        return;
+      }
 
-    let current = 0;
-    setInterval(() => {
-      slides[current].classList.remove("active");
-      current = (current + 1) % slides.length;
-      slides[current].classList.add("active");
-    }, intervalMs);
+      const slidesCfg = Array.isArray(manifest.slides) ? manifest.slides : [];
+      if (slidesCfg.length === 0) {
+        showError("No slides defined in manifest.json");
+        return;
+      }
+
+      const defaultDuration = manifest.defaultDurationMs || 10000;
+      const transitionMs = manifest.transitionMs || 1500;
+      const fit = manifest.fit === "cover" ? "cover" : "contain";
+
+      document.documentElement.style.setProperty("--transition", transitionMs + "ms");
+
+      // Build <img> elements
+      const slides = slidesCfg.map((cfg, i) => {
+        const img = document.createElement("img");
+        img.src = cfg.src;
+        img.className = "slide" + (i === 0 ? " active" : "");
+        img.style.objectFit = fit;
+        img.onerror = () => console.warn("Failed to load image:", cfg.src);
+        root.appendChild(img);
+        return { el: img, duration: cfg.durationMs || defaultDuration };
+      });
+
+      // Cycle
+      let current = 0;
+      function next() {
+        slides[current].el.classList.remove("active");
+        current = (current + 1) % slides.length;
+        slides[current].el.classList.add("active");
+        setTimeout(next, slides[current].duration);
+      }
+      setTimeout(next, slides[current].duration);
+
+      // Auto-refresh manifest every 5 minutes so MTRs pick up changes
+      // without needing the signage session to restart.
+      setInterval(async () => {
+        try {
+          const res = await fetch("manifest.json?t=" + Date.now(), { cache: "no-store" });
+          if (!res.ok) return;
+          const fresh = await res.json();
+          const oldKey = JSON.stringify(slidesCfg);
+          const newKey = JSON.stringify(fresh.slides || []);
+          if (oldKey !== newKey) {
+            // Reload the page to rebuild slideshow cleanly
+            location.reload();
+          }
+        } catch (_) { /* ignore transient errors */ }
+      }, 5 * 60 * 1000);
+    })();
   </script>
 </body>
 </html>
