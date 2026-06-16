@@ -1,7 +1,7 @@
 {
   "defaultDurationMs": 10000,
   "transitionMs": 1500,
-  "fit": "contain",
+  "fit": "cover",
   "slides": [
     { "src": "videos/video.mp4", "type": "video" }
   ]
