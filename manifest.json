@@ -1,5 +1,5 @@
 {
-  "defaultDurationMs": 10000,
+  "defaultDurationMs": 15000,
   "transitionMs": 1500,
   "fit": "cover",
   "slides": [
