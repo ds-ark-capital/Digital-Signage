@@ -70,26 +70,55 @@
 
       document.documentElement.style.setProperty("--transition", transitionMs + "ms");
 
-      // Build <img> elements
+      // Build slide elements
       const slides = slidesCfg.map((cfg, i) => {
-        const img = document.createElement("img");
-        img.src = cfg.src;
-        img.className = "slide" + (i === 0 ? " active" : "");
-        img.style.objectFit = fit;
-        img.onerror = () => console.warn("Failed to load image:", cfg.src);
-        root.appendChild(img);
-        return { el: img, duration: cfg.durationMs || defaultDuration };
+        const isVideo = cfg.type === "video";
+        const el = isVideo ? document.createElement("video") : document.createElement("img");
+        el.src = cfg.src;
+        el.className = "slide" + (i === 0 ? " active" : "");
+        el.style.objectFit = fit;
+
+        if (isVideo) {
+          el.muted = true;
+          el.playsInline = true;
+          el.loop = false;
+          el.onerror = () => console.warn("Failed to load video:", cfg.src);
+        } else {
+          el.onerror = () => console.warn("Failed to load image:", cfg.src);
+        }
+
+        root.appendChild(el);
+        return { el, duration: cfg.durationMs || defaultDuration, isVideo };
       });
 
       // Cycle
       let current = 0;
-      function next() {
-        slides[current].el.classList.remove("active");
-        current = (current + 1) % slides.length;
-        slides[current].el.classList.add("active");
-        setTimeout(next, slides[current].duration);
+
+      function showSlide(index) {
+        const slide = slides[index];
+        slide.el.classList.add("active");
+        if (slide.isVideo) {
+          slide.el.currentTime = 0;
+          slide.el.play().catch(() => {});
+          if (slide.duration) {
+            setTimeout(nextSlide, slide.duration);
+          } else {
+            slide.el.addEventListener("ended", nextSlide, { once: true });
+          }
+        } else {
+          setTimeout(nextSlide, slide.duration);
+        }
       }
-      setTimeout(next, slides[current].duration);
+
+      function nextSlide() {
+        const prev = slides[current];
+        prev.el.classList.remove("active");
+        if (prev.isVideo) prev.el.pause();
+        current = (current + 1) % slides.length;
+        showSlide(current);
+      }
+
+      showSlide(current);
 
       // Auto-refresh manifest every 5 minutes so MTRs pick up changes
       // without needing the signage session to restart.
